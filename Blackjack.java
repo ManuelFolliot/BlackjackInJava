@@ -45,6 +45,10 @@ public class Blackjack {
         public boolean isAce() {
             return value == "A";
         }
+
+        public String getImagePath() {
+            return "src/PlayingCards/" + toString() + ".png";
+        }
     }
 
     // ArrayList est une classe de la bibliothèque Java importée avec java.util
@@ -67,10 +71,72 @@ public class Blackjack {
     int boardWidth = 600;
     int boardHeight = boardWidth;
 
+    // on définit les dimensions des cartes
+    int cardWidth = 110;
+    int cardHeight = 154;
+
     // JFrame est issue de la bibliothèque javax.swing et va permettre de créer une
     // interface graphique
     JFrame frame = new JFrame("Black Jack");
-    JPanel gamePanel = new JPanel();
+    JPanel gamePanel = new JPanel() {
+        @Override
+        public void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            try {
+                // on va chercher les images des cartes
+                // tout d'abord la carte face cachée du dealer
+                Image hiddenCardImg = new ImageIcon(getClass().getResource("src/PlayingCards/Back.png")).getImage();
+                if (!stayButton.isEnabled()) {
+                    hiddenCardImg = new ImageIcon(getClass().getResource(hiddenCard.getImagePath())).getImage();
+                }
+                g.drawImage(hiddenCardImg, 20, 20, cardWidth, cardHeight, this);
+
+                // puis on tire les cartes du dealer
+                for (int i = 0; i < dealerHand.size(); i++) {
+                    Card card = dealerHand.get(i);
+                    Image cardImg = new ImageIcon(getClass().getResource(card.getImagePath())).getImage();
+                    g.drawImage(cardImg, cardWidth + 25 + (cardWidth + 5) * i, 20, cardWidth, cardHeight, null);
+                }
+
+                // puis les cartes du joueur
+                for (int i = 0; i < playerHand.size(); i++) {
+                    Card card = playerHand.get(i);
+                    Image cardImg = new ImageIcon(getClass().getResource(card.getImagePath())).getImage();
+                    g.drawImage(cardImg, 20 + (cardWidth + 5) * i, 320, cardWidth, cardHeight, null);
+                }
+
+                if (!stayButton.isEnabled()) {
+                    dealerSum = reduceDealerAce();
+                    playerSum = reducePlayerAce();
+                    System.out.println("STAY: ");
+                    System.out.println(dealerSum);
+                    System.out.println(playerSum);
+
+                    String message = "";
+                    if (playerSum > 21) {
+                        message = "You lose";
+                    } else if (dealerSum > 21) {
+                        message = "You win";
+                    } else if (playerSum == dealerSum) {
+                        message = "Tie";
+                    } else if (playerSum > dealerSum) {
+                        message = "You win";
+                    } else if (playerSum < dealerSum) {
+                        message = "You lose";
+                    }
+
+                    g.setFont(new Font("Arial", Font.PLAIN, 30));
+                    g.setColor(Color.white);
+                    g.drawString(message, 220, 250);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+    };
     JPanel buttonPanel = new JPanel();
     JButton hitButton = new JButton("Hit");
     JButton stayButton = new JButton("Stay");
@@ -94,6 +160,38 @@ public class Blackjack {
         stayButton.setFocusable(false);
         buttonPanel.add(stayButton);
         frame.add(buttonPanel, BorderLayout.SOUTH);
+
+        hitButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                Card card = deck.remove(deck.size() - 1);
+                playerSum += card.getValue();
+                playerAceCount += card.isAce() ? 1 : 0;
+                playerHand.add(card);
+                if (reducePlayerAce() > 21) {
+                    hitButton.setEnabled(false);
+                }
+
+                // permet de mettre à jour le panel
+                gamePanel.repaint();
+            }
+        });
+
+        stayButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                hitButton.setEnabled(false);
+                stayButton.setEnabled(false);
+
+                while (dealerSum < 17) {
+                    Card card = deck.remove(deck.size() - 1);
+                    dealerSum += card.getValue();
+                    dealerAceCount += card.isAce() ? 1 : 0;
+                    dealerHand.add(card);
+                }
+                gamePanel.repaint();
+            }
+        });
+
+        gamePanel.repaint();
     }
 
     public void startGame() {
@@ -172,6 +270,22 @@ public class Blackjack {
         }
         System.out.println("Deck shuffled");
         System.out.println(deck);
+    }
+
+    public int reducePlayerAce() {
+        while (playerSum > 21 && playerAceCount > 0) {
+            playerSum -= 10;
+            playerAceCount -= 1;
+        }
+        return playerSum;
+    }
+
+    public int reduceDealerAce() {
+        while (dealerSum > 21 && dealerAceCount > 0) {
+            dealerSum -= 10;
+            dealerAceCount -= 1;
+        }
+        return dealerSum;
     }
 
     public static void main(String[] args) {
